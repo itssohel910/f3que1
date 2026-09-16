@@ -52,6 +52,7 @@ pub async fn handle_action(
             send_resp(write_arc, &ProxyResponse::QueueSync { queue: cleared }).await;
         }
         ProxyAction::TriggerTopQueue { channel_id } => {
+            state.last_sender_was_me.store(true, Ordering::SeqCst);
             if let Some((item, remaining_q)) = state.pop_next_item(&channel_id).await {
                 execute_queued_reaction(
                     item,
@@ -61,9 +62,11 @@ pub async fn handle_action(
                     gw_broadcast_tx.clone(),
                     remaining_q,
                     state.clone(),
-                    false,
+                    true,
                 )
                 .await;
+            } else {
+                state.last_sender_was_me.store(false, Ordering::SeqCst);
             }
         }
         ProxyAction::EnqueueNumber { channel_id, item } => {
