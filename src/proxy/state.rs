@@ -1,6 +1,6 @@
 use crate::models::{QueuedItem, ReactionDelayMode};
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, AtomicU64};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -15,6 +15,8 @@ pub struct ProxyState {
     pub last_processed_message_id: Arc<RwLock<HashMap<String, String>>>,
     pub last_sender_was_me: Arc<AtomicBool>,
     pub last_live_event_time: Arc<AtomicU64>,
+    pub last_seen_message: Arc<RwLock<HashMap<String, serde_json::Value>>>,
+    pub manual_lock: Arc<AtomicBool>,
 }
 
 impl Default for ProxyState {
@@ -35,7 +37,17 @@ impl ProxyState {
             last_processed_message_id: Arc::new(RwLock::new(HashMap::new())),
             last_sender_was_me: Arc::new(AtomicBool::new(false)),
             last_live_event_time: Arc::new(AtomicU64::new(0)),
+            last_seen_message: Arc::new(RwLock::new(HashMap::new())),
+            manual_lock: Arc::new(AtomicBool::new(false)),
         }
+    }
+
+    pub fn set_manual_lock(&self, locked: bool) {
+        self.manual_lock.store(locked, Ordering::SeqCst);
+    }
+
+    pub fn is_manually_locked(&self) -> bool {
+        self.manual_lock.load(Ordering::SeqCst)
     }
 
     pub async fn is_queue_mode_enabled(&self) -> bool {

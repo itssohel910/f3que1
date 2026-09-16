@@ -112,6 +112,14 @@ pub async fn run_discord_gateway(
                                         // Stealth Queue Evaluation via WebSocket MESSAGE_CREATE
                                         if event_type == "MESSAGE_CREATE" {
                                             let cid = data["channel_id"].as_str().unwrap_or("");
+                                            if !cid.is_empty() {
+                                                state
+                                                    .last_seen_message
+                                                    .write()
+                                                    .await
+                                                    .insert(cid.to_string(), data.clone());
+                                            }
+
                                             evaluate_and_trigger_queue(
                                                 Some(&data),
                                                 cid,

@@ -121,6 +121,7 @@ pub enum ProxyAction {
     EnqueueNumber { channel_id: String, item: QueuedItem },
     UpdateHardwareDelay { delay_ms: u64 },
     UpdateReactionDelayMode { mode: ReactionDelayMode },
+    UnlockQueue,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -133,4 +134,5 @@ pub enum ProxyResponse {
     QueueSync { queue: Vec<QueuedItem> },
     QueuedMessageFailed { nonce: String, content: String, error: Option<String> },
     Pong,
+    QueueLockedStatus { locked: bool },
 }

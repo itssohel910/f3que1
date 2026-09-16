@@ -31,6 +31,10 @@ pub async fn handle_action(
     gw_broadcast_tx: &broadcast::Sender<ProxyResponse>,
 ) {
     match action {
+        ProxyAction::UnlockQueue => {
+            state.set_manual_lock(false);
+            send_resp(write_arc, &ProxyResponse::QueueLockedStatus { locked: false }).await;
+        }
         ProxyAction::SetQueueMode { enabled } => {
             state.set_queue_mode(enabled).await;
             if !enabled {
@@ -63,46 +67,41 @@ pub async fn handle_action(
             }
         }
         ProxyAction::EnqueueNumber { channel_id, item } => {
+            if state.is_manually_locked() {
+                return;
+            }
+
             let queue_was_empty = state.is_queue_empty(&channel_id).await;
             let updated_q = state.enqueue_item(&channel_id, item).await;
             send_resp(write_arc, &ProxyResponse::QueueSync { queue: updated_q.clone() }).await;
 
             if queue_was_empty {
-                let url = format!(
-                    "https://discord.com/api/v10/channels/{}/messages?limit=1",
-                    channel_id
-                );
-                let res = http_client
-                    .get(&url)
-                    .header("Authorization", discord_token)
-                    .send()
-                    .await;
+                let cached_msg = {
+                    let map = state.last_seen_message.read().await;
+                    map.get(&channel_id).cloned()
+                };
 
-                if let Ok(resp) = res {
-                    if let Ok(arr) = resp.json::<serde_json::Value>().await {
-                        if let Some(first_msg) = arr.get(0) {
-                            let author_id = first_msg["author"]["id"].as_str().unwrap_or("");
-                            let is_known_bot_id = author_id == "510016054391734273" || author_id == "639599059036012605";
-                            let is_bot = is_known_bot_id
-                                || first_msg["author"]["bot"].as_bool().unwrap_or(false)
-                                || first_msg["webhook_id"].is_string()
-                                || first_msg["type"].as_u64().map_or(false, |t| t != 0 && t != 19);
+                if let Some(msg_data) = cached_msg {
+                    let author_id = msg_data["author"]["id"].as_str().unwrap_or("");
+                    let is_known_bot_id = author_id == "510016054391734273" || author_id == "639599059036012605";
+                    let is_bot = is_known_bot_id
+                        || msg_data["author"]["bot"].as_bool().unwrap_or(false)
+                        || msg_data["webhook_id"].is_string()
+                        || msg_data["type"].as_u64().map_or(false, |t| t != 0 && t != 19);
 
-                            if is_bot {
-                                state.last_sender_was_me.store(true, Ordering::SeqCst);
-                            } else {
-                                evaluate_and_trigger_queue(
-                                    Some(first_msg),
-                                    &channel_id,
-                                    state,
-                                    discord_token.to_string(),
-                                    Arc::clone(http_client),
-                                    gw_broadcast_tx.clone(),
-                                    true,
-                                )
-                                .await;
-                            }
-                        }
+                    if is_bot {
+                        state.last_sender_was_me.store(true, Ordering::SeqCst);
+                    } else {
+                        evaluate_and_trigger_queue(
+                            Some(&msg_data),
+                            &channel_id,
+                            state,
+                            discord_token.to_string(),
+                            Arc::clone(http_client),
+                            gw_broadcast_tx.clone(),
+                            true,
+                        )
+                        .await;
                     }
                 }
             }
