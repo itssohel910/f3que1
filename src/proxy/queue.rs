@@ -47,6 +47,7 @@ pub async fn execute_queued_reaction(
             .post(&msg_url)
             .header("Authorization", &discord_token)
             .header("Content-Type", "application/json")
+            .header("Origin", "https://discord.com")
             .json(&payload)
             .send()
             .await;

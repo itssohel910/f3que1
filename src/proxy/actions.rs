@@ -132,6 +132,7 @@ pub async fn handle_action(
                 let res = client_ref.post(&url)
                     .header("Authorization", &token_ref)
                     .header("Content-Type", "application/json")
+                    .header("Origin", "https://discord.com")
                     .json(&payload)
                     .send()
                     .await;
