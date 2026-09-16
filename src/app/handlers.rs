@@ -58,6 +58,7 @@ impl crate::app::state::AppState {
                 }
                 self.update_preview_typed_text();
             }
+            AppEvent::ToggleManualLock => {}
             AppEvent::UpdateQueueState(q) => {
                 self.queue = q;
                 self.update_preview_typed_text();
@@ -241,6 +242,7 @@ impl crate::app::state::AppState {
                 }
                 if k.code == KeyCode::Char('c') && k.modifiers.contains(KeyModifiers::CONTROL) && self.input_text.is_empty() {
                     self.queue.clear();
+                    self.input_text.clear();
                     self.failed_nonces.clear();
                     self.update_preview_typed_text();
                     let _ = tx.send(AppEvent::ClearQueue).await;
@@ -248,6 +250,7 @@ impl crate::app::state::AppState {
                 }
                 if k.code == KeyCode::Delete {
                     self.queue.clear();
+                    self.input_text.clear();
                     self.failed_nonces.clear();
                     self.update_preview_typed_text();
                     let _ = tx.send(AppEvent::ClearQueue).await;
@@ -276,15 +279,20 @@ impl crate::app::state::AppState {
                 match k.code {
                     KeyCode::F(1) => {
                         let _ = tx.send(AppEvent::TriggerTopQueue).await;
+                        let _ = tx.send(AppEvent::ToggleManualLock).await;
                     }
                     KeyCode::F(2) => {
                         let _ = tx.send(AppEvent::ToggleQueueMode).await;
                     }
                     KeyCode::F(3) => {
                         self.queue.clear();
+                        self.input_text.clear();
                         self.failed_nonces.clear();
                         self.update_preview_typed_text();
                         let _ = tx.send(AppEvent::ClearQueue).await;
+                    }
+                    KeyCode::F(4) => {
+                        let _ = tx.send(AppEvent::ToggleManualLock).await;
                     }
                     KeyCode::F(6) => {
                         self.show_timestamp = !self.show_timestamp;
@@ -302,9 +310,6 @@ impl crate::app::state::AppState {
                     }
                     KeyCode::BackTab | KeyCode::F(11) | KeyCode::F(12) | KeyCode::Insert => {
                         let _ = tx.send(AppEvent::ToggleMode).await;
-                    }
-                    KeyCode::F(4) => {
-                        self.active_modal = ActiveModal::LogoutPrompt;
                     }
                     KeyCode::F(5) => {
                         self.active_modal = ActiveModal::SwitchChannelPrompt;

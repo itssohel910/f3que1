@@ -62,6 +62,7 @@ pub fn spawn_network_handlers(
                     }
                     AppEvent::ClearQueue => Some(ProxyAction::ClearQueue { channel_id: active_cid }),
                     AppEvent::TriggerTopQueue => Some(ProxyAction::TriggerTopQueue { channel_id: active_cid }),
+                    AppEvent::ToggleManualLock => Some(ProxyAction::UnlockQueue),
                     AppEvent::EnqueueNumberItem(item) => Some(ProxyAction::EnqueueNumber { channel_id: active_cid, item }),
                     AppEvent::UpdateHardwareDelay(ms) => Some(ProxyAction::UpdateHardwareDelay { delay_ms: ms }),
                     AppEvent::UpdateReactionDelayMode(mode) => Some(ProxyAction::UpdateReactionDelayMode { mode }),

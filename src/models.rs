@@ -66,6 +66,7 @@ pub enum AppEvent {
     ToggleQueueMode,
     ClearQueue,
     TriggerTopQueue,
+    ToggleManualLock,
     UpdateQueueState(Vec<QueuedItem>),
     EnqueueNumberItem(QueuedItem),
     UpdateHardwareDelay(u64),
