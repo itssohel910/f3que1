@@ -48,6 +48,8 @@ pub async fn execute_queued_reaction(
             .header("Authorization", &discord_token)
             .header("Content-Type", "application/json")
             .header("Origin", "https://discord.com")
+            .header("Referer", format!("https://discord.com/channels/@me/{}", channel_id))
+            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36")
             .json(&payload)
             .send()
             .await;
@@ -55,8 +57,9 @@ pub async fn execute_queued_reaction(
         let (is_success, err_msg) = match res {
             Ok(resp) if resp.status().is_success() => (true, None),
             Ok(resp) => {
+                let status_code = resp.status();
                 let err_text = resp.text().await.unwrap_or_else(|_| "Rate Limited / Rejected".to_string());
-                (false, Some(err_text))
+                (false, Some(format!("HTTP {}: {}", status_code, err_text)))
             }
             Err(e) => (false, Some(e.to_string())),
         };

@@ -110,6 +110,8 @@ impl DiscordHttpClient {
             .header("Authorization", &self.token)
             .header("Content-Type", "application/json")
             .header("Origin", "https://discord.com")
+            .header("Referer", format!("https://discord.com/channels/@me/{}", channel_id))
+            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36")
             .json(&payload)
             .send()
             .await
