@@ -33,6 +33,7 @@ pub async fn handle_action(
     match action {
         ProxyAction::UnlockQueue => {
             state.set_manual_lock(false);
+            state.last_sender_was_me.store(false, Ordering::SeqCst);
             send_resp(write_arc, &ProxyResponse::QueueLockedStatus { locked: false }).await;
         }
         ProxyAction::SetQueueMode { enabled } => {
@@ -52,7 +53,8 @@ pub async fn handle_action(
             send_resp(write_arc, &ProxyResponse::QueueSync { queue: cleared }).await;
         }
         ProxyAction::TriggerTopQueue { channel_id } => {
-            state.last_sender_was_me.store(true, Ordering::SeqCst);
+            state.set_manual_lock(false);
+            state.last_sender_was_me.store(false, Ordering::SeqCst);
             if let Some((item, remaining_q)) = state.pop_next_item(&channel_id).await {
                 execute_queued_reaction(
                     item,
@@ -65,8 +67,6 @@ pub async fn handle_action(
                     true,
                 )
                 .await;
-            } else {
-                state.last_sender_was_me.store(false, Ordering::SeqCst);
             }
         }
         ProxyAction::EnqueueNumber { channel_id, item } => {
@@ -84,29 +84,16 @@ pub async fn handle_action(
                     map.get(&channel_id).cloned()
                 };
 
-                if let Some(msg_data) = cached_msg {
-                    let author_id = msg_data["author"]["id"].as_str().unwrap_or("");
-                    let is_known_bot_id = author_id == "510016054391734273" || author_id == "639599059036012605";
-                    let is_bot = is_known_bot_id
-                        || msg_data["author"]["bot"].as_bool().unwrap_or(false)
-                        || msg_data["webhook_id"].is_string()
-                        || msg_data["type"].as_u64().map_or(false, |t| t != 0 && t != 19);
-
-                    if is_bot {
-                        state.last_sender_was_me.store(true, Ordering::SeqCst);
-                    } else {
-                        evaluate_and_trigger_queue(
-                            Some(&msg_data),
-                            &channel_id,
-                            state,
-                            discord_token.to_string(),
-                            Arc::clone(http_client),
-                            gw_broadcast_tx.clone(),
-                            true,
-                        )
-                        .await;
-                    }
-                }
+                evaluate_and_trigger_queue(
+                    cached_msg.as_ref(),
+                    &channel_id,
+                    state,
+                    discord_token.to_string(),
+                    Arc::clone(http_client),
+                    gw_broadcast_tx.clone(),
+                    true,
+                )
+                .await;
             }
         }
         ProxyAction::SubscribeChannel { channel_id } => {
@@ -133,6 +120,8 @@ pub async fn handle_action(
                     .header("Authorization", &token_ref)
                     .header("Content-Type", "application/json")
                     .header("Origin", "https://discord.com")
+                    .header("Referer", format!("https://discord.com/channels/@me/{}", channel_id))
+                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36")
                     .json(&payload)
                     .send()
                     .await;

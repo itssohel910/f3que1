@@ -279,7 +279,6 @@ impl crate::app::state::AppState {
                 match k.code {
                     KeyCode::F(1) => {
                         let _ = tx.send(AppEvent::TriggerTopQueue).await;
-                        let _ = tx.send(AppEvent::ToggleManualLock).await;
                     }
                     KeyCode::F(2) => {
                         let _ = tx.send(AppEvent::ToggleQueueMode).await;
