@@ -55,6 +55,8 @@ pub async fn handle_action(
         ProxyAction::TriggerTopQueue { channel_id } => {
             state.set_manual_lock(false);
             state.last_sender_was_me.store(false, Ordering::SeqCst);
+            send_resp(write_arc, &ProxyResponse::QueueLockedStatus { locked: false }).await;
+
             if let Some((item, remaining_q)) = state.pop_next_item(&channel_id).await {
                 execute_queued_reaction(
                     item,
